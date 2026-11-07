@@ -1,0 +1,15 @@
+mode,condition,prompt_tokens,completion_tokens,llm_calls,tool_calls,probe_calls,latency_median_s,latency_p95_s
+fixed,no_memory,4628.71,316.39,6.78,5.02,0.0,20.37,65.3
+fixed,ours_hand,9019.22,405.98,8.01,4.31,0.03,17.55,65.33
+fixed,ours_trained,7991.77,414.07,8.15,4.37,0.0,16.46,59.25
+fixed,outcome_only,11647.9,481.42,8.73,4.1,0.0,19.53,65.53
+fixed,plain,11664.37,474.34,8.59,4.05,0.0,18.85,66.36
+fixed,reflexion,7769.71,424.92,7.69,4.84,0.0,14.97,54.18
+fixed,xiong,11671.47,484.9,8.77,4.1,0.0,19.4,64.76
+growing,no_memory,4882.92,419.81,7.78,5.02,0.0,23.26,67.02
+growing,ours_hand,9751.23,518.99,9.14,3.82,0.02,15.07,60.33
+growing,ours_trained,8690.69,522.11,9.15,3.85,0.0,13.12,50.66
+growing,outcome_only,11482.35,543.98,9.49,3.69,0.0,16.2,64.14
+growing,plain,11636.24,539.88,9.35,3.73,0.0,16.33,62.95
+growing,reflexion,7583.27,508.67,8.32,4.37,0.0,12.02,41.5
+growing,xiong,11865.2,588.68,9.7,3.95,0.0,18.81,66.32
