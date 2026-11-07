@@ -81,6 +81,16 @@ python scripts/analyze.py                            # tables + plots
 modal app stop -y rem-vllm
 ```
 
+## Getting the LLM response cache (needed for `--cache-only`)
+
+The cache is 422 MB, too large for git, so it is attached to the GitHub release **v1.0-results** as gzip files:
+
+```bash
+gh release download v1.0-results -R ehtisham5618/reliability-aware-episodic-memory -D cache
+python -c "import gzip,shutil;[shutil.copyfileobj(gzip.open(f'cache/{n}.gz','rb'),open(f'cache/{n}','wb')) for n in ('llm_cache.sqlite','embeddings.json')]"
+python scripts/run_all.py --cache-only
+```
+
 ## Runtime and cost (measured on this project)
 
 | Step | Measured |
