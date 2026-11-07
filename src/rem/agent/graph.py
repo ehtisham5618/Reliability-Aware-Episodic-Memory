@@ -210,9 +210,7 @@ def build_graph(ctx: RunContext):
             if ver["status"] == "pass":
                 verified_claims.update({cl["key"]: cl["value"] for cl in e.claims})
             if c["decision"] == "revise":
-                with ctx.lock:
-                    ctx.rev_counter += 1
-                    rid = f"{e.id}~rev{ctx.rev_counter}"
+                rid = f"{e.id}~rev@{task.task_id}"  # deterministic (thread-order independent) -> stable prompts/cache keys
                 r = _apply_corrections(e, ver["corrections"], rid)
                 r.provenance.update({"run": ctx.run_tag, "task": task.task_id})
                 c["revised_id"] = rid

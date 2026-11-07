@@ -1,0 +1,38 @@
+{
+ "build(privileged)": {
+  "success": "5/5",
+  "llm_calls": 29,
+  "prompt_tokens": 28183,
+  "completion_tokens": 1647,
+  "failures": []
+ },
+ "test no_memory": {
+  "success": "3/5",
+  "llm_calls": 29,
+  "prompt_tokens": 19080,
+  "completion_tokens": 1252,
+  "failures": [
+   [
+    "test-000",
+    "wrong date: got '07/08/2027', expected '08/07/2027'"
+   ],
+   [
+    "test-002",
+    "wrong dept: got 'HR', expected department code 'HR-6775'"
+   ]
+  ]
+ },
+ "test plain(oracle bank)": {
+  "success": "5/5",
+  "llm_calls": 21,
+  "prompt_tokens": 21270,
+  "completion_tokens": 927,
+  "failures": []
+ },
+ "client_stats": {
+  "calls": 64,
+  "cache_hits": 15,
+  "prompt_tokens": 68533,
+  "completion_tokens": 3826
+ }
+}

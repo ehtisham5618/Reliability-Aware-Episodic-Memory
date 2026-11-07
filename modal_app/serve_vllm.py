@@ -21,7 +21,7 @@ VLLM_VERSION = "0.11.0"
 image = (
     modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12")
     .entrypoint([])
-    .uv_pip_install(f"vllm=={VLLM_VERSION}", "huggingface_hub[hf_transfer]")
+    .uv_pip_install(f"vllm=={VLLM_VERSION}", "transformers==4.57.1", "huggingface_hub[hf_transfer]")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "VLLM_USE_V1": "1"})
 )
 hf_cache = modal.Volume.from_name("rem-hf-cache", create_if_missing=True)
@@ -61,4 +61,13 @@ def serve():
         "--enable-prefix-caching",
         "--tool-call-parser", "openai", "--enable-auto-tool-choice",
     ]
-    subprocess.Popen(" ".join(cmd), shell=True)
+    proc = subprocess.Popen(cmd)
+
+    def watchdog():
+        # fail fast: if vLLM dies (e.g. bad dependency), kill the container so no idle GPU is billed
+        code = proc.wait()
+        print(f"vLLM exited with code {code}; terminating container", flush=True)
+        os._exit(1)
+
+    import threading
+    threading.Thread(target=watchdog, daemon=True).start()
