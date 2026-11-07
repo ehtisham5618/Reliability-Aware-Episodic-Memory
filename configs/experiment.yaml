@@ -1,0 +1,27 @@
+# Full experiment grid (approved plan, see PLAN.md §6.1)
+backend: vllm            # vllm (Modal) for the grid; groq for smoke test + cross-check
+model: openai/gpt-oss-20b
+temperature: 0.0
+reasoning_effort: low
+max_tokens: 1200
+retrieval_k: 4
+max_turns: 8             # ReAct turns per attempt (identical for all conditions)
+max_attempts: 2          # 1 Reflexion-style retry (identical for all conditions)
+llm_concurrency: 128     # parallel requests to vLLM
+
+seeds: [0, 1, 2]         # test seeds: corruption sampling, task order, LLM seed
+val_seeds: [100, 101, 102]
+rates: [0.0, 0.1, 0.2, 0.3, 0.5]
+modes: [fixed, growing]
+
+main_conditions: [no_memory, plain, reflexion, outcome_only, xiong, ours_hand, ours_trained]
+ablation_conditions: [abl_no_outcome, abl_no_confidence, abl_no_recency, abl_no_context,
+                      abl_no_contradiction, abl_no_verification, abl_no_hardgate]
+ablation_rates: [0.2, 0.5]
+ablation_modes: [fixed]
+
+training:
+  utility: {use_reliable: 1.0, use_unreliable: -2.0, probe_cost: 0.05}
+  max_wrong_reject: 0.10
+  confirm_rate: 0.3      # LLM confirmation of top-3 threshold settings on val
+  confirm_seed: 100

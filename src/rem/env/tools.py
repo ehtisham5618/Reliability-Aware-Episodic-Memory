@@ -15,7 +15,7 @@ TOOL_NAMES = ["kb_lookup", "calc", "fx_convert", "book_room", "config", "log_exp
 
 # Short descriptions the test-time agent sees (version agnostic, deliberately terse).
 TOOL_BRIEF = {
-    "kb_lookup": "kb_lookup(entity, field): company knowledge base. Entity types: room, office, service, department.",
+    "kb_lookup": "kb_lookup(entity, field): company knowledge base; entity is a name, e.g. kb_lookup(entity='Maple', field='capacity'). Covers rooms, offices, services, departments.",
     "calc": "calc(expression): arithmetic calculator.",
     "fx_convert": "fx_convert(amount, src, dst): currency conversion at today's rate.",
     "book_room": "book_room(...): book a meeting room. Signature changes between API versions.",
@@ -229,3 +229,31 @@ class ToolEnv:
     # ---- accounting --------------------------------------------------------------
     def n_calls(self, include_probes: bool = True) -> int:
         return sum(1 for c in self.calls if include_probes or not c["probe"])
+
+
+# ---------------------------------------------------------------------------------- native tool schemas
+def _fn(name, desc, props=None, req=None, open_=False):
+    params = {"type": "object", "properties": props or {}}
+    if req:
+        params["required"] = req
+    if open_:
+        params["additionalProperties"] = True
+    return {"type": "function", "function": {"name": name, "description": desc, "parameters": params}}
+
+
+_S, _N = {"type": "string"}, {"type": "number"}
+TOOL_SCHEMAS = [
+    _fn("kb_lookup", "Company knowledge base lookup. entity is a name (e.g. 'Maple', 'Lahore', 'billing', 'Finance'); "
+        "covers rooms, offices, services and departments.", {"entity": _S, "field": _S}, ["entity", "field"]),
+    _fn("calc", "Arithmetic calculator.", {"expression": _S}, ["expression"]),
+    _fn("fx_convert", "Currency conversion at today's rate.", {"amount": _N, "src": _S, "dst": _S}, ["amount", "src", "dst"]),
+    _fn("book_room", "Book a meeting room. Its arguments changed between API versions; call help if unsure.", open_=True),
+    _fn("config", "Read or write a service configuration value. Keys changed between API versions; call help if unsure.", open_=True),
+    _fn("log_expense", "Record an expense in the ledger.", {"dept": _S, "amount_usd": _N}, ["dept", "amount_usd"]),
+    _fn("submit_answer", "Submit the final answer for question tasks.", {"answer": _S}, ["answer"]),
+    _fn("help", "Exact arguments of a tool for the current API version.", {"tool": _S}, ["tool"]),
+    _fn("finish", "Call once when the task is complete (status 'done') or cannot be completed (status 'failed').",
+        {"status": {"type": "string", "enum": ["done", "failed"]},
+         "confidence": {"type": "integer", "description": "0-100: how sure you are the task was done correctly"}},
+        ["status", "confidence"]),
+]
