@@ -1,33 +1,67 @@
 {
  "sessions": [
   {
-   "label": "build_bank",
+   "label": "first start (crashed, transformers)",
    "gpu": "H100",
-   "start": 1794061689.6468277,
-   "end": 1794061996.3911502,
-   "hours_charged": 0.0852,
-   "usd": 0.37,
-   "kept_warm": true
-  },
-  {
-   "label": "threshold_confirmation",
-   "gpu": "H100",
-   "start": 1794062055.2071571,
-   "end": 1794062127.5300763,
-   "hours_charged": 0.0201,
-   "usd": 0.087,
-   "kept_warm": true
-  },
-  {
-   "label": "idle_tail_after_training",
-   "gpu": "H100",
-   "usd": 0.362,
+   "minutes": 11.1,
+   "usd": 0.767,
    "kept_warm": false,
    "start": null,
    "end": null,
-   "hours_charged": 0.0833
+   "source": "modal app list (created_at/stopped_at)"
+  },
+  {
+   "label": "bank build v1 + training v1",
+   "gpu": "H100",
+   "minutes": 8.73,
+   "usd": 0.604,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "source": "modal app list (created_at/stopped_at)"
+  },
+  {
+   "label": "bank build v2 + training + main grid + ablations",
+   "gpu": "H100",
+   "minutes": 40.57,
+   "usd": 2.804,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "source": "modal app list (created_at/stopped_at)"
+  },
+  {
+   "label": "main rerun 1",
+   "gpu": "H100",
+   "minutes": 11.33,
+   "usd": 0.783,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "source": "modal app list (created_at/stopped_at)"
+  },
+  {
+   "label": "main rerun 2",
+   "gpu": "H100",
+   "minutes": 3.93,
+   "usd": 0.272,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "source": "modal app list (created_at/stopped_at)"
+  },
+  {
+   "label": "grid rerun after retrieval fix (main + ablations)",
+   "gpu": "H100",
+   "minutes": 10.93,
+   "usd": 0.756,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "source": "modal app list (created_at/stopped_at)"
   }
  ],
- "pre_guard_usd": 0.75,
- "note": "pre_guard_usd = first H100 start that crashed (est.)"
+ "pre_guard_usd": 0.0,
+ "note": "Calibrated 2026-11-07 from Modal app lifetimes (upper bound on GPU time); Modal hourly billing reported $2.67 for the first completed hour, consistent with these windows.",
+ "total_usd": 5.99
 }

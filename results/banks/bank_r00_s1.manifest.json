@@ -1,0 +1,8 @@
+{
+ "rate": 0.0,
+ "seed": 1,
+ "n_bank": 150,
+ "n_corrupted": 0,
+ "corrupted_ids": [],
+ "types": {}
+}

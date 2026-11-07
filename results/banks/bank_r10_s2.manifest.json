@@ -1,0 +1,40 @@
+{
+ "rate": 0.1,
+ "seed": 2,
+ "n_bank": 150,
+ "n_corrupted": 15,
+ "corrupted_ids": [
+  "build:build-101",
+  "build:build-022",
+  "build:build-045",
+  "build:build-067",
+  "build:build-084",
+  "build:build-085",
+  "build:build-127",
+  "build:build-074",
+  "build:build-106",
+  "build:build-147",
+  "build:build-031",
+  "build:build-039",
+  "build:build-059",
+  "build:build-123",
+  "build:build-070"
+ ],
+ "types": {
+  "build:build-101": "wrong_fact",
+  "build:build-022": "wrong_action",
+  "build:build-045": "false_success",
+  "build:build-067": "context_mismatch",
+  "build:build-084": "stale_version",
+  "build:build-085": "wrong_fact",
+  "build:build-127": "wrong_action",
+  "build:build-074": "false_success",
+  "build:build-106": "context_mismatch",
+  "build:build-147": "stale_version",
+  "build:build-031": "false_success",
+  "build:build-039": "false_success",
+  "build:build-059": "false_success",
+  "build:build-123": "context_mismatch",
+  "build:build-070": "wrong_fact"
+ }
+}
