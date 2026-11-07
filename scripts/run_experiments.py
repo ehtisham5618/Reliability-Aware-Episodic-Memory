@@ -63,8 +63,8 @@ def cells(cfg, block):
                 for seed in cfg["seeds"]:
                     for c in cfg["ablation_conditions"]:
                         yield c, mode, rate, seed
-    elif block == "crosscheck":
-        for mode in ("fixed", "growing"):
+    elif block == "crosscheck":  # Groq free tier: 1000 requests/day -> fixed mode only
+        for mode in ("fixed",):
             for rate in (0.0, 0.3):
                 for c in ("no_memory", "plain", "xiong", "ours_trained"):
                     yield c, mode, rate, 0
@@ -87,7 +87,7 @@ def main():
     scorers = load_frozen_scorers()
     tasks = generate_splits()["test"]
     if a.block == "crosscheck":
-        tasks = tasks[: a.n_tasks or 24]
+        tasks = tasks[: a.n_tasks or 15]
     clean = load_jsonl(ROOT / "results" / "banks" / "clean_bank.jsonl")
     banks = {}
     for rate in sorted(set(cfg["rates"]) | set(cfg["ablation_rates"])):

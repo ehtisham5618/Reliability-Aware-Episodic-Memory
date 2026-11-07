@@ -102,3 +102,20 @@ def test_store_retrieval_is_relevant_and_keeps_rejected():
     store.set_status(hits[0][0].id, "deleted")
     assert hits[0][0].id not in [e.id for e, _ in store.retrieve(q.text, k=60)]
     store.close()
+
+
+def test_retrieval_never_empty_under_concurrency():
+    """Regression test: Chroma's in-process query intermittently returned [] under concurrency."""
+    from concurrent.futures import ThreadPoolExecutor
+    tasks = SPLITS["test"][:10]
+
+    def cell(i):
+        st = MemoryStore([e.clone() for e in CLEAN], name=f"conc-{i}")
+        with ThreadPoolExecutor(4) as ex:
+            out = list(ex.map(lambda t: len(st.retrieve(t.text, k=4)), tasks))
+        st.close()
+        return out
+
+    with ThreadPoolExecutor(16) as ex:
+        res = [n for out in ex.map(cell, range(32)) for n in out]
+    assert all(n == 4 for n in res)

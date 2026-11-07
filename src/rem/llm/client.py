@@ -120,7 +120,7 @@ class LLMClient:
             base = cfg.get("base_url") or os.environ.get(cfg["base_url_env"])
             if not base:
                 raise RuntimeError(f"{cfg.get('base_url_env')} not set")
-            self._client = OpenAI(base_url=base, api_key=os.environ.get(cfg["key_env"], "EMPTY"), timeout=180, max_retries=0)
+            self._client = OpenAI(base_url=base, api_key=os.environ.get(cfg["key_env"], "EMPTY"), timeout=600, max_retries=0)
         return self._client
 
     def key(self, messages, seed, tools=None) -> tuple[str, dict]:
@@ -180,7 +180,8 @@ class LLMClient:
                 print(f"[llm] {self.backend} attempt {attempt}: {type(e).__name__}: {msg[:200]}", file=sys.stderr, flush=True)
                 if "401" in msg or "403" in msg or "model_not_found" in msg:
                     raise
-                if "Error code: 400" in msg:
+                # deterministic invalid model output: Groq 400 parse/tool errors, vLLM 500 harmony-header errors
+                if "Error code: 400" in msg or ("Error code: 500" in msg and "message header" in msg):
                     bad_requests += 1
                     if bad_requests >= 2:  # deterministic model-output failure: record it as an invalid turn
                         resp = {"content": "", "tool_calls": [], "prompt_tokens": 0, "completion_tokens": 0,

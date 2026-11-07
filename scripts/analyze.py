@@ -84,6 +84,20 @@ def main():
                          "n_pairs": n, "significant": bool(lo > 0 or hi < 0)})
     save_table(pd.DataFrame(rows), "paired_diff_ours_trained")
 
+    # secondary (pooled over corruption rates): unit = (seed, task), value = mean over the 5 rates,
+    # so the bootstrap resamples independent units, not correlated rate replicates
+    rows = []
+    for mode, g in df.groupby("mode"):
+        per = g.groupby(["condition", "seed", "task_id"])["success"].mean().astype(float)
+        ours = per.loc["ours_trained"]
+        for other in MAIN:
+            if other == "ours_trained":
+                continue
+            m, lo, hi, n = M.paired_diff(ours, per.loc[other])
+            rows.append({"mode": mode, "vs": other, "diff_pp": 100 * m, "ci_lo_pp": 100 * lo, "ci_hi_pp": 100 * hi,
+                         "n_units": n, "significant": bool(lo > 0 or hi < 0)})
+    save_table(pd.DataFrame(rows).round(2), "paired_diff_pooled_rates")
+
     # ---------------- mechanism metrics
     rows = []
     for (mode, cond, rate), g in df.groupby(["mode", "condition", "rate"]):
@@ -100,11 +114,20 @@ def main():
                      "mem_used_per_task": g["n_used"].mean()})
     mech = pd.DataFrame(rows)
     save_table(mech.round(4), "mechanism")
+    for col, nm in [("reliable_used_frac", "pivot_reliable_used"), ("repeated_error_rate", "pivot_repeated_error"),
+                    ("unnecessary_rejection", "pivot_unnecessary_rejection"), ("recovery_rate", "pivot_recovery"),
+                    ("mem_used_per_task", "pivot_mem_used")]:
+        pv = mech[mech.condition != "no_memory"].pivot_table(index="condition", columns=["mode", "rate"], values=col)
+        pv.columns = [f"{m} {int(r*100)}%" for m, r in pv.columns]
+        save_table(pv.round(3).reindex([c for c in MAIN if c in pv.index]).reset_index(), nm)
 
     att = M.attributed_errors(df)
     if len(att):
         a = att.groupby(["mode", "condition", "rate"])["attributed_error"].agg(["mean", "sum", "count"]).reset_index()
         save_table(a.round(4), "attributed_errors")
+        pv = a.pivot_table(index="condition", columns=["mode", "rate"], values="mean")
+        pv.columns = [f"{m} {int(r*100)}%" for m, r in pv.columns]
+        save_table(pv.round(3).reindex([c for c in MAIN if c in pv.index]).reset_index(), "pivot_attributed_errors")
 
     # ---------------- propagation (growing)
     prop = M.propagation(RAW / "main" / "stores", BANKS)
@@ -115,6 +138,10 @@ def main():
                                                     erroneous_written=("n_erroneous_written", "mean"),
                                                     corrupted_flagged=("n_corrupted_flagged", "mean")).reset_index()
         save_table(pa.round(3), "propagation")
+        for col, nm in [("erroneous_descendants", "pivot_prop_descendants"), ("max_depth", "pivot_prop_depth")]:
+            pv = pa.pivot_table(index="condition", columns="rate", values=col)
+            pv.columns = [f"{int(r*100)}%" for r in pv.columns]
+            save_table(pv.round(2).reindex([c for c in MAIN if c in pv.index]).reset_index(), nm)
 
     # ---------------- cost
     rows = []
@@ -125,6 +152,8 @@ def main():
                      "latency_median_s": g.llm_latency_s.median(), "latency_p95_s": g.llm_latency_s.quantile(0.95)})
     cost = pd.DataFrame(rows)
     save_table(cost.round(3), "cost")
+    cs = cost.groupby(["mode", "condition"]).mean(numeric_only=True).drop(columns="rate").round(2).reset_index()
+    save_table(cs, "cost_summary")
 
     # ---------------- calibration of the scorer on test memories
     cal_rows, cal_curves = [], {}
@@ -176,7 +205,21 @@ def main():
     if cal_curves:
         plot_calibration(cal_curves)
     (TAB / "summary.json").write_text(json.dumps(summary, indent=1))
+    render_results()
     print("done:", summary)
+
+
+def render_results():
+    """RESULTS.md = docs/RESULTS.template.md with {{table:<name>}} replaced by results/tables/<name>.md,
+    so every table in the report is exactly what the analysis computed from the raw logs."""
+    import re
+    tpl = ROOT / "docs" / "RESULTS.template.md"
+    if not tpl.exists():
+        return
+    text = tpl.read_text(encoding="utf-8")
+    text = re.sub(r"\{\{table:([\w_]+)\}\}", lambda m: (TAB / f"{m.group(1)}.md").read_text(encoding="utf-8")
+                  if (TAB / f"{m.group(1)}.md").exists() else f"*(table {m.group(1)} not available)*", text)
+    (ROOT / "RESULTS.md").write_text(text, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------------- plots
@@ -201,20 +244,20 @@ def plot_success(succ):
             if s.empty:
                 continue
             x = s.rate * 100
-            ax.fill_between(x, s.ci_lo, s.ci_hi, color=COLOR[cond], alpha=0.10, lw=0)
+            ax.fill_between(x, s.ci_lo, s.ci_hi, color=COLOR[cond], alpha=0.06 if cond == "no_memory" else 0.09, lw=0)
             ax.plot(x, s.success, color=COLOR[cond], lw=2, marker=MARKER[cond], ms=8, label=LABEL[cond],
                     markeredgecolor=SURF, markeredgewidth=1.5)
-            ends.append((x.iloc[-1], s.success.iloc[-1], LABEL[cond], COLOR[cond]))
-        _endlabels(ax, ends)
+            ends.append(cond)
         ax.set_title(f"{mode.capitalize()}-bank mode", color=INK, fontsize=11, loc="left")
         ax.set_xlabel("Corrupted memories in bank (%)", color=INK2)
         ax.set_xticks([0, 10, 20, 30, 50])
-        ax.set_xlim(-2, 72)
-    axes[0].set_ylabel("Task success (95% bootstrap CI)", color=INK2)
+        ax.set_xlim(-2, 52)
+    axes[0].set_ylabel("Task success (shaded: 95% bootstrap CI)", color=INK2)
     axes[0].yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    axes[1].legend(loc="lower left", fontsize=8, frameon=False)
-    fig.suptitle("Task success vs corruption rate", color=INK, x=0.06, ha="left")
-    fig.tight_layout()
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=7, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.suptitle("Task success vs corruption rate (3 seeds x 60 test tasks per point)", color=INK, x=0.06, ha="left")
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(PLOT / "success_vs_corruption.png", dpi=160)
     plt.close(fig)
 
@@ -277,10 +320,9 @@ def plot_cost(df):
         g = df[df["mode"] == mode].groupby("condition").agg(tokens=("tokens", "mean"), success=("success", "mean"),
                                                             tools=("all_tool_calls", "mean")).reset_index()
         for _, r in g.iterrows():
-            ax.scatter(r.tokens / 1000, r.success, s=90, color=COLOR[r.condition], marker=MARKER[r.condition],
-                       edgecolor=SURF, linewidth=1.5, zorder=3, label=LABEL[r.condition])
-            ax.annotate(f"{LABEL[r.condition]} ({r.tools:.1f} tool calls)", (r.tokens / 1000, r.success), xytext=(7, 4),
-                        textcoords="offset points", fontsize=7.5, color=INK2)
+            ax.scatter(r.tokens / 1000, r.success, s=110, color=COLOR[r.condition], marker=MARKER[r.condition],
+                       edgecolor=SURF, linewidth=1.5, zorder=3, label=f"{LABEL[r.condition]} ({r.tools:.1f} tool calls/task)")
+        ax.legend(fontsize=7.5, frameon=False, loc="lower right")
         ax.set_xlabel("LLM tokens per task (thousands)", color=INK2)
         ax.set_title(f"{mode.capitalize()}-bank mode, all corruption rates pooled", color=INK, fontsize=10, loc="left")
         ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
@@ -300,15 +342,17 @@ def plot_calibration(curves):
     for cond, c in curves.items():
         b = np.clip(np.digitize(c.score, edges) - 1, 0, 9)
         agg = c.assign(b=b).groupby("b").agg(p=("score", "mean"), y=("y", "mean"), n=("y", "size")).reset_index()
-        agg = agg[agg.n >= 5]
-        ax.plot(agg.p, agg.y, color=COLOR[cond], lw=2, marker=MARKER[cond], ms=8, label=f"{LABEL[cond]} (n={len(c)})",
-                markeredgecolor=SURF, markeredgewidth=1.5)
+        agg = agg[agg.n >= 30]
+        ax.plot(agg.p, agg.y, color=COLOR[cond], lw=1.5, alpha=0.8, label=f"{LABEL[cond]} (n={len(c)})")
+        ax.scatter(agg.p, agg.y, s=20 + 300 * agg.n / agg.n.max(), color=COLOR[cond], marker=MARKER[cond],
+                   edgecolor=SURF, linewidth=1.2, zorder=3)
     ax.set_xlabel("Predicted reliability score", color=INK2)
     ax.set_ylabel("Observed fraction reliable (ground truth)", color=INK2)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.legend(fontsize=8, frameon=False, loc="upper left")
-    ax.set_title("Scorer calibration on test-split memories", color=INK, fontsize=11, loc="left")
+    ax.set_title("Scorer calibration on test-split memories\n(10 bins, bins with >=30 memories; marker area ~ bin size)",
+                 color=INK, fontsize=10, loc="left")
     fig.tight_layout()
     fig.savefig(PLOT / "scorer_calibration.png", dpi=160)
     plt.close(fig)

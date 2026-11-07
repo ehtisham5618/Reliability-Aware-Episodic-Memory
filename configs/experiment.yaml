@@ -7,7 +7,7 @@ max_tokens: 1200
 retrieval_k: 4
 max_turns: 8             # ReAct turns per attempt (identical for all conditions)
 max_attempts: 2          # 1 Reflexion-style retry (identical for all conditions)
-llm_concurrency: 128     # parallel requests to vLLM
+llm_concurrency: 192     # parallel requests to vLLM
 
 seeds: [0, 1, 2]         # test seeds: corruption sampling, task order, LLM seed
 val_seeds: [100, 101, 102]

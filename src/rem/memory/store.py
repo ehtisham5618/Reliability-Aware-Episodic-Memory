@@ -1,5 +1,5 @@
-"""Episodic memory store: episode records (dict + SQLite persistence) and a Chroma vector index
-over task texts. Rejected memories are flagged, never deleted. (The Xiong-style baseline's
+"""Episodic memory store: episode records (dict + SQLite persistence), Chroma (embedding model +
+mirrored vector collection) and exact-cosine retrieval over task texts. Rejected memories are flagged, never deleted. (The Xiong-style baseline's
 'delete' marks status='deleted' so it is excluded from retrieval but kept for analysis.)"""
 from __future__ import annotations
 
@@ -32,6 +32,10 @@ class MemoryStore:
     def __init__(self, episodes: list[Episode] | None = None, name: str | None = None):
         self.name = name or f"bank{next(_counter)}"
         self.episodes: dict[str, Episode] = {}
+        self._ids: list[str] = []
+        self._vecs: list = []
+        self._mat = None
+        self._lock = threading.Lock()
         client = _chroma()
         with _client_lock:
             try:
@@ -54,11 +58,14 @@ class MemoryStore:
         if not eps:
             return
         vecs = embed([e.task_text for e in eps])
-        for e in eps:
-            self.episodes[e.id] = e
-        with _client_lock:
-            self.col.add(ids=[e.id for e in eps], embeddings=vecs.tolist(),
-                         metadatas=[{"family": e.family} for e in eps])
+        with self._lock:
+            for e, v in zip(eps, vecs):
+                self.episodes[e.id] = e
+                self._ids.append(e.id)
+                self._vecs.append(v)
+            self._mat = None
+        with _client_lock:  # Chroma mirror (persistence/inspection); ranking does not depend on it
+            self.col.add(ids=[e.id for e in eps], embeddings=vecs.tolist(), metadatas=[{"family": e.family} for e in eps])
 
     def add(self, e: Episode):
         self.add_many([e])
@@ -73,23 +80,28 @@ class MemoryStore:
         return len(self.episodes)
 
     def retrieve(self, query: str, k: int = 4, exclude_status: tuple = ("deleted",)) -> list[tuple[Episode, float]]:
-        """Top-k by cosine relevance. Returns (episode, similarity)."""
-        n = len(self.episodes)
-        if n == 0:
-            return []
+        """Top-k by exact cosine similarity over the stored MiniLM embeddings.
+
+        Chroma's in-process client intermittently returned EMPTY query results when many
+        collections were queried concurrently (reproduced: 621/1920 queries with count()==150),
+        so ranking is done exactly with numpy; ties are broken by episode id (deterministic)."""
+        with self._lock:
+            if not self._ids:
+                return []
+            if self._mat is None:
+                self._mat = np.stack(self._vecs)
+            mat, ids = self._mat, list(self._ids)
         q = embed([query])[0]
-        with _client_lock:
-            res = self.col.query(query_embeddings=[q.tolist()], n_results=n)
+        sims = mat @ q
+        order = sorted(range(len(ids)), key=lambda i: (-round(float(sims[i]), 6), ids[i]))
         out = []
-        for eid, dist in zip(res["ids"][0], res["distances"][0]):
-            e = self.episodes[eid]
+        for i in order:
+            e = self.episodes[ids[i]]
             if e.status in exclude_status:
                 continue
-            out.append((e, float(1.0 - dist)))
+            out.append((e, float(sims[i])))
             if len(out) >= k:
                 break
-        # deterministic tie-break
-        out.sort(key=lambda x: (-round(x[1], 6), x[0].id))
         return out
 
     def similarity(self, a: str, b: str) -> float:

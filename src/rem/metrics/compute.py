@@ -161,7 +161,7 @@ def propagation(stores_dir: Path, banks_dir: Path) -> pd.DataFrame:
         bank = load_bank(str(banks_dir), meta["rate"], meta["seed"])
         corrupted = {i for i, e in bank.items() if e.corrupted}
         tainted, depth = lineage(st, corrupted)
-        new = [e for e in st.values() if ":" in e.id or "~rev" in e.id]
+        new = [e for e in st.values() if e.id not in bank]  # written during this run (episodes + revisions)
         err_desc = [e for e in new if e.id in tainted and not ground_truth_reliable(e, "v2")]
         rows.append({**meta, "tag": f.stem, "n_written": len(new),
                      "n_tainted_written": sum(1 for e in new if e.id in tainted),
@@ -170,6 +170,8 @@ def propagation(stores_dir: Path, banks_dir: Path) -> pd.DataFrame:
                      "mean_depth": float(np.mean([depth[e.id] for e in err_desc])) if err_desc else 0.0,
                      "n_erroneous_written": sum(1 for e in new if not ground_truth_reliable(e, "v2")),
                      "n_flagged_rejected": sum(1 for e in st.values() if e.status == "rejected"),
+                     "n_revisions": sum(1 for e in new if e.revised_from),
+                     "n_written_episodes": sum(1 for e in new if not e.revised_from),
                      "n_corrupted_flagged": sum(1 for i in corrupted if i in st and st[i].status in ("rejected", "revised", "deleted"))})
     return pd.DataFrame(rows)
 

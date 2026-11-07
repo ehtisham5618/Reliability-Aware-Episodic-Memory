@@ -6,3 +6,7 @@ cache/
 .pytest_cache/
 *.egg-info/
 artifacts/cache/
+results/_invalid_chroma_empty_retrieval/
+results/*.log
+results/tables/per_task_main.jsonl
+scripts/__pycache__/
