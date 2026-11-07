@@ -98,7 +98,7 @@ class _RateLimiter:
 class LLMClient:
     def __init__(self, backend: str = "groq", model: str | None = None, temperature: float = 0.0,
                  max_tokens: int = 1200, reasoning_effort: str = "low", cache_path: Path = CACHE_PATH,
-                 max_concurrency: int | None = None):
+                 max_concurrency: int | None = None, budget=None):
         self.backend = backend
         cfg = BACKENDS[backend]
         self.model = model or cfg["model"]
@@ -111,6 +111,7 @@ class LLMClient:
         self._stats_lock = threading.Lock()
         n = max_concurrency or (4 if backend == "groq" else 128)
         self._sem = threading.BoundedSemaphore(n)
+        self.budget = budget  # rem.llm.budget.Budget (vLLM on Modal only)
 
     def _openai(self):
         if self._client is None:
@@ -151,6 +152,8 @@ class LLMClient:
         resp = None
         bad_requests = 0
         for attempt in range(10):
+            if self.budget is not None:
+                self.budget.check()  # raises BudgetExceeded before spending more GPU time
             self.limiter.acquire(est)
             t0 = time.time()
             try:
@@ -171,6 +174,8 @@ class LLMClient:
                         "latency_s": round(lat, 4), "finish_reason": r.choices[0].finish_reason}
                 break
             except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "BudgetExceeded":
+                    raise
                 msg = str(e)
                 print(f"[llm] {self.backend} attempt {attempt}: {type(e).__name__}: {msg[:200]}", file=sys.stderr, flush=True)
                 if "401" in msg or "403" in msg or "model_not_found" in msg:

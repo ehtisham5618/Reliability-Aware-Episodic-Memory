@@ -1,7 +1,7 @@
 """OpenAI-compatible vLLM server for openai/gpt-oss-20b on Modal.
 
 Cost controls (Modal credits are limited):
-  * scaledown_window=600  -> the GPU container shuts down after 10 idle minutes
+  * scaledown_window=300  -> the GPU container shuts down after 5 idle minutes
   * max_containers=1      -> never more than one GPU at a time
   * weights + compile caches live on Modal Volumes -> no re-download on cold start
   * scripts stop the app explicitly (`modal app stop rem-vllm`) after each batch
@@ -41,7 +41,7 @@ def download():
 @app.function(
     image=image,
     gpu=GPU,
-    scaledown_window=600,
+    scaledown_window=300,
     max_containers=1,
     timeout=24 * 60 * 60,
     volumes={"/root/.cache/huggingface": hf_cache, "/root/.cache/vllm": vllm_cache},

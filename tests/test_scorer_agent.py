@@ -139,3 +139,22 @@ def test_ours_rejects_corrupted_more_than_plain():
     bad_ours = sum(not ok for r in o for ok in r["used_gt_reliable"])
     assert bad_ours < bad_plain
     s1.close(); s2.close()
+
+
+def test_vectorised_policy_matches_reference():
+    from rem.scorer import train as T
+    recs = T.collect(CLEAN, SPLITS["val"][:12], seeds=(100,), rates=(0.0, 0.5))
+    sc = hand_scorer()
+    ref = T.simulate_policy(recs, sc)
+    vec = T._simulate_vec(T._precompute(recs, sc), sc.thresholds["use"], sc.thresholds["reject"], sc.thresholds["caution"])
+    for k in ("utility", "wrong_reject_rate", "probes_per_mem", "used_frac"):
+        assert abs(ref[k] - vec[k]) < 1e-9, (k, ref[k], vec[k])
+
+
+def test_textual_tool_call_fallback():
+    from rem.agent.graph import _textual_tool_calls
+    c = _textual_tool_calls('{"tool":"book_room","args":{"room":"Ash"}} then {"status":"done","confidence":90}', 2)
+    assert [x["name"] for x in c] == ["book_room", "finish"]
+    assert json.loads(c[0]["arguments"]) == {"room": "Ash"}
+    assert _textual_tool_calls('{"answer": "42"}', 0) == []
+    assert _textual_tool_calls("no json here", 0) == []

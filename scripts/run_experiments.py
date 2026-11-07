@@ -23,6 +23,7 @@ from rem.agent.runner import run_cell  # noqa: E402
 from rem.baselines.conditions import ALL  # noqa: E402
 from rem.corruption.inject import make_bank, save_bank  # noqa: E402
 from rem.env.tasks import generate_splits  # noqa: E402
+from rem.llm.budget import Budget  # noqa: E402
 from rem.llm.client import LLMClient  # noqa: E402
 from rem.memory.store import load_jsonl  # noqa: E402
 from rem.scorer.model import Scorer, hand_scorer  # noqa: E402
@@ -80,8 +81,9 @@ def main():
     a = ap.parse_args()
     cfg = yaml.safe_load((ROOT / "configs" / "experiment.yaml").read_text())
     backend = a.backend or cfg["backend"]
+    budget = Budget() if backend == "vllm" else None
     llm = LLMClient(backend, max_tokens=cfg["max_tokens"], reasoning_effort=cfg["reasoning_effort"],
-                    max_concurrency=cfg["llm_concurrency"] if backend == "vllm" else 3)
+                    max_concurrency=cfg["llm_concurrency"] if backend == "vllm" else 3, budget=budget)
     scorers = load_frozen_scorers()
     tasks = generate_splits()["test"]
     if a.block == "crosscheck":
@@ -109,13 +111,23 @@ def main():
                         k=cfg["retrieval_k"], max_turns=cfg["max_turns"], max_attempts=cfg["max_attempts"])
         return tag, sum(r["success"] for r in recs) / len(recs)
 
-    done = 0
-    with ThreadPoolExecutor(a.cell_workers) as ex:
-        futs = {ex.submit(go, c): c for c in todo}
-        for f in as_completed(futs):
-            tag, sr = f.result()
-            done += 1
-            print(f"[{done}/{len(todo)}] {tag} success={sr:.3f} | {time.time()-t0:.0f}s | llm={llm.stats}", flush=True)
+    done = failed = 0
+    try:
+        with ThreadPoolExecutor(a.cell_workers) as ex:
+            futs = {ex.submit(go, c): c for c in todo}
+            for f in as_completed(futs):
+                try:
+                    tag, sr = f.result()
+                except Exception as e:  # noqa: BLE001 - budget stop or failure: cell stays resumable
+                    failed += 1
+                    print(f"[cell failed] {futs[f]}: {type(e).__name__}: {str(e)[:200]}", flush=True)
+                    continue
+                done += 1
+                print(f"[{done}/{len(todo)}] {tag} success={sr:.3f} | {time.time()-t0:.0f}s | llm={llm.stats}", flush=True)
+    finally:
+        if budget is not None and not llm.cache_only:
+            budget.close(f"grid-{a.block}")
+    print(f"finished cells={done} failed/unfinished={failed}", flush=True)
     (out_dir / f"_llm_stats_{int(time.time())}.json").write_text(json.dumps(llm.stats))
 
 

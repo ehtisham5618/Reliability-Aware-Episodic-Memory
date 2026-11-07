@@ -1,0 +1,33 @@
+{
+ "sessions": [
+  {
+   "label": "build_bank",
+   "gpu": "H100",
+   "start": 1794061689.6468277,
+   "end": 1794061996.3911502,
+   "hours_charged": 0.0852,
+   "usd": 0.37,
+   "kept_warm": true
+  },
+  {
+   "label": "threshold_confirmation",
+   "gpu": "H100",
+   "start": 1794062055.2071571,
+   "end": 1794062127.5300763,
+   "hours_charged": 0.0201,
+   "usd": 0.087,
+   "kept_warm": true
+  },
+  {
+   "label": "idle_tail_after_training",
+   "gpu": "H100",
+   "usd": 0.362,
+   "kept_warm": false,
+   "start": null,
+   "end": null,
+   "hours_charged": 0.0833
+  }
+ ],
+ "pre_guard_usd": 0.75,
+ "note": "pre_guard_usd = first H100 start that crashed (est.)"
+}

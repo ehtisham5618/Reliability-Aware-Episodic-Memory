@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -17,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from rem.agent.graph import RunContext, build_graph, run_task  # noqa: E402
 from rem.baselines.conditions import Condition  # noqa: E402
 from rem.env.tasks import generate_splits  # noqa: E402
+from rem.llm.budget import Budget  # noqa: E402
 from rem.llm.client import LLMClient  # noqa: E402
 from rem.memory.schema import ground_truth_reliable  # noqa: E402
 from rem.memory.store import MemoryStore  # noqa: E402
@@ -30,15 +32,22 @@ def main():
     ap.add_argument("--workers", type=int, default=32)
     ap.add_argument("--limit", type=int, default=None)
     a = ap.parse_args()
-    llm = LLMClient(a.backend)
+    budget = Budget() if a.backend == "vllm" else None
+    llm = LLMClient(a.backend, max_concurrency=128, budget=budget)
     tasks = generate_splits()["build"][: a.limit]
     store = MemoryStore([], name="build-bank")
     ctx = RunContext(llm=llm, store=store, condition=BUILD, mode="build", seed=0, run_tag="build", scorer=None)
     g = build_graph(ctx)
     raw = ROOT / "results" / "raw" / "build"
     raw.mkdir(parents=True, exist_ok=True)
-    with ThreadPoolExecutor(a.workers) as ex:
-        recs = list(ex.map(lambda t: run_task(g, ctx, t), tasks))
+    t0 = time.time()
+    try:
+        with ThreadPoolExecutor(a.workers) as ex:
+            recs = list(ex.map(lambda t: run_task(g, ctx, t), tasks))
+    finally:
+        if budget is not None and not llm.cache_only:
+            budget.close("build_bank")
+    wall = time.time() - t0
     with open(raw / "build.jsonl", "w", encoding="utf-8") as f:
         for r in recs:
             f.write(json.dumps(r) + "\n")
@@ -54,7 +63,7 @@ def main():
         "by_version": {v: sum(1 for e in eps if e.env_version == v) for v in ("v1", "v2")},
         "reliable_now_v2": sum(ground_truth_reliable(e, "v2") for e in eps),
         "outcome_success": sum(e.outcome == "success" for e in eps),
-        "llm": llm.stats,
+        "llm": llm.stats, "wall_s": round(wall, 1),
         "tokens": {"prompt": sum(r["prompt_tokens"] for r in recs), "completion": sum(r["completion_tokens"] for r in recs)},
     }
     (ROOT / "results" / "banks" / "clean_bank.stats.json").write_text(json.dumps(stats, indent=1))

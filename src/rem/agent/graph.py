@@ -108,6 +108,38 @@ def _memory_block(ctx: RunContext, state: S) -> str:
     return "\n".join(out)
 
 
+def _textual_tool_calls(content: str, turn: int) -> list:
+    """gpt-oss sometimes writes a tool call as JSON text instead of a native call; accept the
+    common shapes {"tool"|"name"|"action": ..., "args"|"arguments"|"parameters": {...}}."""
+    if not content or "{" not in content:
+        return []
+    out, dec, i = [], json.JSONDecoder(), 0
+    while True:
+        i = content.find("{", i)
+        if i < 0:
+            break
+        try:
+            obj, end = dec.raw_decode(content, i)
+        except json.JSONDecodeError:
+            i += 1
+            continue
+        i = end
+        if isinstance(obj, dict):
+            name = obj.get("tool") or obj.get("name") or obj.get("action")
+            args = obj.get("args") or obj.get("arguments") or obj.get("parameters") or {}
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except json.JSONDecodeError:
+                    args = {}
+            if isinstance(name, str) and isinstance(args, dict):
+                out.append({"id": f"text-{turn}-{len(out)}", "name": name, "arguments": json.dumps(args)})
+            elif obj.get("status") in ("done", "failed"):
+                out.append({"id": f"text-{turn}-{len(out)}", "name": "finish",
+                            "arguments": json.dumps({"status": obj["status"], "confidence": obj.get("confidence", 50)})})
+    return out
+
+
 def _apply_corrections(ep: Episode, corr: dict, new_id: str) -> Episode:
     old_vals = {c["key"]: c["value"] for c in ep.claims}
     pairs = [(str(old_vals[k]), str(v)) for k, v in corr.items() if k in old_vals and not isinstance(v, list)]
@@ -119,7 +151,7 @@ def _apply_corrections(ep: Episode, corr: dict, new_id: str) -> Episode:
     acts, obs = json.loads(blob)
     r = ep.clone(id=new_id, actions=acts, observations=obs, lesson=lesson, revised_from=ep.id, parent_ids=[ep.id],
                  status="active", corrupted=None, corrupted_from=None)
-    r.claims = extract_claims(r.family, r.params, r.actions, r.observations)
+    r.claims = extract_claims(r.family, r.params, r.actions, r.observations, r.lesson)
     r.provenance = {"revision_of": ep.id, "corrections": corr}
     r.true_outcome = None
     return r
@@ -248,12 +280,14 @@ def build_graph(ctx: RunContext):
         acts, obs = list(state["actions"]), list(state["observations"])
         final = None
         left = ctx.max_turns - state["turn"] - 1
-        if r.tool_calls:
+        tool_calls = r.tool_calls or _textual_tool_calls(r.content, state["turn"])
+        if tool_calls:
             msgs.append({"role": "assistant", "content": r.content or "",
                          "tool_calls": [{"id": tc["id"], "type": "function",
-                                         "function": {"name": tc["name"], "arguments": tc["arguments"]}} for tc in r.tool_calls]})
-            for tc in r.tool_calls[:10]:
-                name = tc["name"]
+                                         "function": {"name": tc["name"], "arguments": tc["arguments"]}} for tc in tool_calls]})
+            for tc in tool_calls[:10]:
+                # gpt-oss (harmony) sometimes leaks channel tags into the name, e.g. 'finish<|channel|>commentary'
+                name = str(tc["name"]).split("<|")[0].strip()
                 try:
                     args = json.loads(tc["arguments"] or "{}")
                     if not isinstance(args, dict):
@@ -293,7 +327,8 @@ def build_graph(ctx: RunContext):
         task = state["task"]
         final = state.get("final") or {}
         commits = [o for a, o in zip(state["actions"], state["observations"]) if a["tool"] in COMMIT_TOOLS[task.family]]
-        ok = final.get("status") == "done" and bool(commits) and not commits[-1].startswith("error")
+        # declared done, OR ran out of turns without declaring failure, after a commit that returned ok
+        ok = final.get("status") != "failed" and bool(commits) and not commits[-1].startswith("error")
         try:
             conf = float(final.get("confidence", 0 if not ok else 50))
         except (TypeError, ValueError):
@@ -321,7 +356,8 @@ def build_graph(ctx: RunContext):
         if ctx.mode == "fixed":
             return {"lesson": ""}
         task = state["task"]
-        traj = P.fmt_traj(state["actions"], state["observations"])
+        acted = next((a for a in reversed(state["attempts_log"]) if a["actions"]), state["attempts_log"][-1])
+        traj = P.fmt_traj(acted["actions"], acted["observations"])
         fb = ""
         outcome = state["perceived"]
         if ctx.mode == "build":  # build phase has an evaluator (Reflexion-style external feedback)
@@ -340,12 +376,13 @@ def build_graph(ctx: RunContext):
         last = state["attempts_log"][-1]
         true_out = "success" if last["checker"] else "fail"
         outcome = true_out if ctx.mode == "build" else state["perceived"]
+        acted = next((a for a in reversed(state["attempts_log"]) if a["actions"]), last)
         ep = Episode(id=f"{ctx.run_tag}:{task.task_id}", task_id=task.task_id, task_text=task.text, family=task.family,
-                     params=task.p, env_version=task.version, timestamp_day=task.day, actions=state["actions"],
-                     observations=state["observations"], outcome=outcome, confidence_raw=state["confidence"],
+                     params=task.p, env_version=task.version, timestamp_day=task.day, actions=acted["actions"],
+                     observations=acted["observations"], outcome=outcome, confidence_raw=state["confidence"],
                      lesson=state.get("lesson", ""), parent_ids=[e.id for e in state.get("used", [])],
                      provenance={"run": ctx.run_tag, "condition": cond.name, "seed": ctx.seed}, true_outcome=true_out)
-        ep.claims = extract_claims(ep.family, ep.params, ep.actions, ep.observations)
+        ep.claims = extract_claims(ep.family, ep.params, ep.actions, ep.observations, ep.lesson)
         ep.evidence = [{"source": "tool", "call": a, "obs": o} for a, o in zip(ep.actions, ep.observations) if a["tool"] == "kb_lookup"]
         written = None
         with ctx.lock:

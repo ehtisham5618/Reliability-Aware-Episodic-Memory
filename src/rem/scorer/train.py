@@ -127,18 +127,61 @@ def simulate_policy(recs, scorer: Scorer):
             "used_frac": used / len(recs), "unreliable_used_frac": used_bad / max(1, used)}
 
 
+def _precompute(recs, scorer: Scorer):
+    """Arrays for a vectorised policy simulation (identical semantics to simulate_policy)."""
+    s0, s1, gate0, gate1 = [], [], [], []
+    for r in recs:
+        cal = scorer.calibrate(r["conf_raw"])
+        x0 = dict(r["x0"], confidence=cal)
+        x1 = dict(r["x1"], confidence=cal)
+        s0.append(scorer.score(x0)); s1.append(scorer.score(x1))
+        gate0.append(scorer.gated(x0)); gate1.append(scorer.gated(x1))
+    A = {k: np.array(v) for k, v in dict(s0=s0, s1=s1, gate0=gate0, gate1=gate1).items()}
+    A["fail"] = np.array([r["ver"] == "fail" for r in recs])
+    A["corr"] = np.array([r["has_corr"] for r in recs])
+    A["rev_ok"] = np.array([bool(r["rev_ok"]) for r in recs])
+    A["y"] = np.array([r["y"] for r in recs]).astype(bool)
+    A["probes"] = np.array([r["probes"] for r in recs], dtype=float)
+    return A
+
+
+def _simulate_vec(A, tu, tr, tc, can_verify=True):
+    use_pre = ~A["gate0"] & (A["s0"] >= tu)
+    band = ~A["gate0"] & (A["s0"] >= tr) & (A["s0"] < tu)
+    if can_verify:
+        ver = band
+        post_ok = ~A["gate1"] & ~A["fail"] & (A["s1"] >= tc)
+        revise = ver & ~A["gate1"] & A["fail"] & A["corr"]
+        use = use_pre | (ver & post_ok)
+        probes = A["probes"][ver].sum()
+    else:
+        use = use_pre | (band & (A["s0"] >= tc))
+        revise = np.zeros_like(use)
+        probes = 0.0
+    used_good = (use & A["y"]) | (revise & A["rev_ok"])
+    used_bad = (use & ~A["y"]) | (revise & ~A["rev_ok"])
+    n = len(A["y"])
+    util = (UTILITY["use_reliable"] * used_good.sum() + UTILITY["use_unreliable"] * used_bad.sum()
+            - UTILITY["probe_cost"] * probes) / n
+    rejected = ~(use | revise)
+    safe = A["y"].sum()
+    return {"utility": float(util), "wrong_reject_rate": float((rejected & A["y"]).sum() / max(1, safe)),
+            "probes_per_mem": float(probes / n), "used_frac": float((use | revise).sum() / n),
+            "unreliable_used_frac": float(used_bad.sum() / max(1, (use | revise).sum()))}
+
+
 def pick_thresholds(recs, scorer: Scorer, top=3):
+    A = _precompute(recs, scorer)
+    can_verify = "verification" not in scorer.dropped
     grid = [round(x, 2) for x in np.arange(0.05, 0.96, 0.05)]
     results = []
     for tu in grid:
         for tr in [g for g in grid if g < tu]:
             for tc in [g for g in grid if tr <= g <= tu]:
-                s = Scorer(scorer.weights, {"use": tu, "reject": tr, "caution": tc}, scorer.calibrator, scorer.hard_gate,
-                           scorer.dropped, scorer.name)
-                m = simulate_policy(recs, s)
+                m = _simulate_vec(A, tu, tr, tc, can_verify)
                 if m["wrong_reject_rate"] <= MAX_WRONG_REJECT:
                     results.append(({"use": tu, "reject": tr, "caution": tc}, m))
-    if not results:  # constraint infeasible -> least wrong rejections
+    if not results:
         raise RuntimeError("no threshold setting satisfies the wrong-rejection cap")
     results.sort(key=lambda z: (-z[1]["utility"], z[0]["use"], -z[0]["reject"]))
     return results[:top]

@@ -16,8 +16,10 @@ from rem.scorer.model import Scorer  # noqa: E402
 
 
 def confirm(cfg, clean, val, scorer: Scorer, top):
+    from rem.llm.budget import Budget
+    budget = Budget()
     llm = LLMClient(cfg["backend"], max_tokens=cfg["max_tokens"], reasoning_effort=cfg["reasoning_effort"],
-                    max_concurrency=cfg["llm_concurrency"])
+                    max_concurrency=cfg["llm_concurrency"], budget=budget)
     rate, seed = cfg["training"]["confirm_rate"], cfg["training"]["confirm_seed"]
     bank, _ = make_bank(clean, rate, seed)
     res = []
@@ -30,5 +32,7 @@ def confirm(cfg, clean, val, scorer: Scorer, top):
         res.append({"thresholds": t["thresholds"], "val_success": succ, "tool_calls_per_task": tools,
                     "sim_utility": t["utility"]})
         print(res[-1])
+    if not llm.cache_only:
+        budget.close("threshold_confirmation")
     best = sorted(res, key=lambda r: (-r["val_success"], r["tool_calls_per_task"]))[0]
     return {"thresholds": best["thresholds"], "all": res}

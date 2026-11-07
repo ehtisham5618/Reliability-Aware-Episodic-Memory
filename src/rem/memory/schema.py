@@ -91,8 +91,36 @@ def _date_format(date: str, p: dict) -> str:
     return "other"
 
 
-def extract_claims(family: str, params: dict, actions: list, observations: list) -> list:
-    """What this memory asserts about the world, from its own params, actions and observations."""
+_LESSON_DATE = re.compile(r"(YYYY-MM-DD|DD/MM/YYYY|MM/DD/YYYY)")
+_LESSON_KEYS = {"max_conn": ("conn", "max_conn"), "connection_limit": ("conn", "connection_limit"),
+                "timeout_ms": ("timeout", "timeout_ms")}
+
+
+def lesson_claims(family: str, lesson: str) -> list:
+    """Convention claims stated in the lesson text (what a lessons-only memory teaches).
+    Only unambiguous tokens are extracted: date-format patterns and config key names."""
+    out = []
+    if not lesson:
+        return out
+    if family == "booking":
+        fmts = set(_LESSON_DATE.findall(lesson))
+        if len(fmts) == 1:  # a lesson naming several formats is not asserting one
+            out.append(_claim("date_format", "lesson:date_format", fmts.pop(), None))
+    if family == "config":
+        for tok, (slot, val) in _LESSON_KEYS.items():
+            if re.search(r"\b" + tok + r"\b", lesson):
+                out.append(_claim("config_key", f"lesson:config_key:{slot}", val, None))
+        quoted_timeout = re.search(r"`timeout`|'timeout'|\"timeout\"|key timeout\b", lesson)
+        if quoted_timeout and not re.search(r"\btimeout_ms\b", lesson):
+            out.append(_claim("config_key", "lesson:config_key:timeout", "timeout", None))
+    for c in out:
+        c["probeable"] = False
+    return out
+
+
+def extract_claims(family: str, params: dict, actions: list, observations: list, lesson: str | None = None) -> list:
+    """What this memory asserts about the world, from its own params, actions, observations and
+    (optionally) the convention claims stated in its lesson text."""
     p = params
     claims = []
     seen = set()
@@ -151,6 +179,8 @@ def extract_claims(family: str, params: dict, actions: list, observations: list)
                 add(_claim("capacity_sum", f"capacity_sum:{'+'.join(p['rooms'])}", float(args.get("answer")), None))
             except (TypeError, ValueError):
                 pass
+    for c in lesson_claims(family, lesson or ""):
+        add(c)
     return claims
 
 

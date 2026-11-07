@@ -37,7 +37,7 @@ def _finalize(ep: Episode, ctype: str, orig: Episode, *, replay_obs: bool = Fals
     ok, _ = check(task, env)
     # true outcome is judged in the world the memory *claims* to describe
     ep.true_outcome = "success" if ok else "fail"
-    ep.claims = extract_claims(ep.family, ep.params, ep.actions, ep.observations)
+    ep.claims = extract_claims(ep.family, ep.params, ep.actions, ep.observations, ep.lesson)
     ep.corrupted = ctype
     ep.corrupted_from = orig.id
     return ep

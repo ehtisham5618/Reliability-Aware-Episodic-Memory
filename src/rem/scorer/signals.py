@@ -45,7 +45,7 @@ def contradiction(ep: Episode, verified_claims: dict | None = None) -> tuple[int
     memory that passed verification in this retrieval set. Returns (flag, conflicts)."""
     conflicts = []
     for c in ep.claims:
-        doc = EVIDENCE.get(c["key"])
+        doc = EVIDENCE.get(c["key"].removeprefix("lesson:"))
         if doc is not None and c["value"] != doc:
             conflicts.append({"key": c["key"], "memory": c["value"], "evidence": doc, "source": "docs"})
         elif verified_claims and c["key"] in verified_claims and c["value"] != verified_claims[c["key"]]:
