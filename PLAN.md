@@ -288,3 +288,4 @@ artifacts/  results/{raw/,tables/,plots/,banks/}  tests/  modal_app/serve_vllm.p
 | 2026-11-07 | Groq limits measured from response headers: 1,000 requests/day and 8K tokens/min per model. | Confirms that Groq is only suitable for the smoke test and cross-check. |
 | 2026-11-07 | Python 3.11.18 installed via `uv`. | 3.11 wasn't installed |
 | 2026-11-07 | Modal budget is capped at $30/month in free credits, so GPU time must be used efficiently. Work is batched, the app scales to zero after 10 minutes idle, and `modal app stop` runs after each batch. | User constraint |
+| 2026-11-07 | The course instructor confirmed that fitting the reliability scorer (weights, calibrator and thresholds on the val split) counts as "training" for this project. | Answers the open question in §5 |

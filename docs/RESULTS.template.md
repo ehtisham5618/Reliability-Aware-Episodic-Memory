@@ -22,7 +22,7 @@
 
 ## 2. Training (scorer fitted on the validation split, then frozen)
 
-"Training" here means fitting the reliability scorer, not the LLM:
+"Training" here means fitting the reliability scorer, not the LLM. The course instructor confirmed this definition.
 
 * **Data:** 3,600 (memory, val-task) pairs. They come from 60 val tasks × 3 val seeds (100–102) × 5 corruption rates × top-4 retrieved memories, giving 4,930 rows once verification states are included. 56.1% of rows are reliable.
 * **Signal weights:** L2 logistic regression. Grouped 5-fold CV ROC-AUC is **0.838** (folds 0.826–0.858). The fitted weights are: version match +2.12, confidence +1.40, verification pass +0.94, verification fail −4.75, outcome −0.97, recency +0.23, context similarity +0.11, bias −0.89. The contradiction signal is a hard gate and is not weighted.
