@@ -1,0 +1,27 @@
+{
+ "calibrator": {
+  "a": -1.774973048754002,
+  "b": 1.1903772528406074,
+  "type": "platt"
+ },
+ "dropped": [
+  "outcome"
+ ],
+ "hard_gate": true,
+ "name": "ablation-outcome",
+ "thresholds": {
+  "caution": 0.55,
+  "reject": 0.55,
+  "use": 0.75
+ },
+ "weights": {
+  "bias": -2.454464736909413,
+  "confidence": 2.7270413721723794,
+  "context_sim": 0.25906104738358415,
+  "recency": 0.42191088820270944,
+  "verif_fail": -4.464627094323828,
+  "verif_pass": 0.9116303728600049,
+  "verif_unchecked": 0.0,
+  "version_match": 2.08877013448273
+ }
+}

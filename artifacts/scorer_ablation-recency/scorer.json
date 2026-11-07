@@ -1,0 +1,27 @@
+{
+ "calibrator": {
+  "a": -1.774973048754002,
+  "b": 1.1903772528406074,
+  "type": "platt"
+ },
+ "dropped": [
+  "recency"
+ ],
+ "hard_gate": true,
+ "name": "ablation-recency",
+ "thresholds": {
+  "caution": 0.6,
+  "reject": 0.6,
+  "use": 0.9
+ },
+ "weights": {
+  "bias": -0.8750779629625327,
+  "confidence": 1.6510129709555923,
+  "context_sim": 0.06983115364062879,
+  "outcome": -0.9997836845043702,
+  "verif_fail": -4.756847957327048,
+  "verif_pass": 0.9318596282213543,
+  "verif_unchecked": 0.0,
+  "version_match": 2.180354293537513
+ }
+}

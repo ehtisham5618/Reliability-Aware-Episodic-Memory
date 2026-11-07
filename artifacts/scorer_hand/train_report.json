@@ -1,0 +1,17 @@
+{
+ "note": "a-priori weights, no fitting",
+ "val_policy": {
+  "utility": -0.2182361111111111,
+  "wrong_reject_rate": 0.0,
+  "probes_per_mem": 0.009166666666666667,
+  "used_frac": 0.6847222222222222,
+  "unreliable_used_frac": 0.43935091277890465
+ },
+ "val_policy_chosen": {
+  "utility": -0.2182361111111111,
+  "wrong_reject_rate": 0.0,
+  "probes_per_mem": 0.009166666666666667,
+  "used_frac": 0.6847222222222222,
+  "unreliable_used_frac": 0.43935091277890465
+ }
+}

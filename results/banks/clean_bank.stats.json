@@ -1,0 +1,21 @@
+{
+ "n": 150,
+ "success_rate": 0.9533333333333334,
+ "by_version": {
+  "v1": 82,
+  "v2": 68
+ },
+ "reliable_now_v2": 71,
+ "outcome_success": 143,
+ "llm": {
+  "calls": 214,
+  "cache_hits": 907,
+  "prompt_tokens": 794815,
+  "completion_tokens": 61878
+ },
+ "wall_s": 28.1,
+ "tokens": {
+  "prompt": 794815,
+  "completion": 61878
+ }
+}

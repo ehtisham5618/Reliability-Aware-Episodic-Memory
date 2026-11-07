@@ -1,0 +1,23 @@
+{
+ "calibrator": null,
+ "dropped": [],
+ "hard_gate": true,
+ "name": "hand",
+ "thresholds": {
+  "caution": 0.5,
+  "reject": 0.3,
+  "use": 0.7
+ },
+ "weights": {
+  "bias": -2.0,
+  "confidence": 1.0,
+  "context_sim": 1.5,
+  "contradiction": -5.0,
+  "outcome": 1.5,
+  "recency": 1.0,
+  "verif_fail": -4.0,
+  "verif_pass": 2.5,
+  "verif_unchecked": 0.0,
+  "version_match": 1.5
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "weights_fit": {
+  "n_rows": 4930,
+  "pos_rate": 0.5606490872210953,
+  "cv_auc_mean": 0.8194612801999883,
+  "cv_auc_folds": [
+   0.8027487244897958,
+   0.81886585776879,
+   0.856900142724376,
+   0.7879007820964248,
+   0.8308908939205549
+  ],
+  "features": [
+   "outcome",
+   "confidence",
+   "recency",
+   "verif_pass",
+   "verif_fail"
+  ]
+ },
+ "calibration": {
+  "n_memories": 1784,
+  "brier_raw": 0.6463004484304933,
+  "brier_platt": 0.22809195596544612,
+  "brier_isotonic": 0.23352288151782663
+ },
+ "isotonic": {
+  "type": "isotonic",
+  "x": [
+   0.0,
+   1.0
+  ],
+  "y": [
+   0.3716367713004484,
+   0.3716367713004484
+  ]
+ },
+ "top_thresholds": [
+  {
+   "thresholds": {
+    "use": 0.45,
+    "reject": 0.4,
+    "caution": 0.45
+   },
+   "utility": -0.008166666666666668,
+   "wrong_reject_rate": 0.06874095513748191,
+   "probes_per_mem": 0.11888888888888889,
+   "used_frac": 0.5377777777777778,
+   "unreliable_used_frac": 0.3347107438016529
+  },
+  {
+   "thresholds": {
+    "use": 0.8,
+    "reject": 0.4,
+    "caution": 0.45
+   },
+   "utility": -0.008291666666666673,
+   "wrong_reject_rate": 0.06874095513748191,
+   "probes_per_mem": 0.9047222222222222,
+   "used_frac": 0.5377777777777778,
+   "unreliable_used_frac": 0.31043388429752067
+  },
+  {
+   "thresholds": {
+    "use": 0.8,
+    "reject": 0.4,
+    "caution": 0.5
+   },
+   "utility": -0.008291666666666673,
+   "wrong_reject_rate": 0.06874095513748191,
+   "probes_per_mem": 0.9047222222222222,
+   "used_frac": 0.5377777777777778,
+   "unreliable_used_frac": 0.31043388429752067
+  }
+ ],
+ "val_policy_chosen": {
+  "utility": -0.008166666666666668,
+  "wrong_reject_rate": 0.06874095513748191,
+  "probes_per_mem": 0.11888888888888889,
+  "used_frac": 0.5377777777777778,
+  "unreliable_used_frac": 0.3347107438016529
+ }
+}

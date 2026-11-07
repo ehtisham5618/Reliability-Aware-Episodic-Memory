@@ -1,0 +1,14 @@
+{
+ "scorers": {
+  "trained": "b8d22b210271ad8e2b58757530031e824b3c550292720ae1898a1cd1b660b04b",
+  "ablation-outcome": "8bdbd64fc91dba155c445737b08f8daa52b00c2954d8c938f9c0cb51604059a3",
+  "ablation-confidence": "7449328c83621942557c52e4b7761d275b01e44a2afb7df9a4ed79c10f794291",
+  "ablation-recency": "34d57bf8cb82690917e35b8122a712a3f315d9de894f039649078eada0e12f9c",
+  "ablation-context": "8d3d7d3601d68e4439cddadd8f69b062fa87c1f15b92f34f19600cd6f753d935",
+  "ablation-contradiction": "2674b0ea54d4425f72bd9355341f0fa72c61ee449ae50db650d38aa30569c360",
+  "ablation-verification": "7d0cbf3895b549b394f90f9f52c06b1607c814bc6ae51fe2633be6001de40c64",
+  "nogate": "19b1dc5e3b9b5bfb1fad34ed8860ee38f0a201a131d8a124a9c91c7e3cf86251",
+  "hand": "afb18bf312dbdd4ce48ad8b906c97761e03142c994fb39da57ce2cdbdcd224ec"
+ },
+ "note": "frozen before any test-split run"
+}

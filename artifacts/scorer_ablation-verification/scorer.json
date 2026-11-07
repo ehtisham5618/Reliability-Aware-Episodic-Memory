@@ -1,0 +1,26 @@
+{
+ "calibrator": {
+  "a": -1.774973048754002,
+  "b": 1.1903772528406074,
+  "type": "platt"
+ },
+ "dropped": [
+  "verification"
+ ],
+ "hard_gate": true,
+ "name": "ablation-verification",
+ "thresholds": {
+  "caution": 0.45,
+  "reject": 0.4,
+  "use": 0.45
+ },
+ "weights": {
+  "bias": -3.0975434675289772,
+  "confidence": 2.9733893379458696,
+  "context_sim": 0.19854533452494647,
+  "outcome": 0.17472429585846563,
+  "recency": 0.710719405561436,
+  "verif_unchecked": 0.0,
+  "version_match": 2.657092581980169
+ }
+}
