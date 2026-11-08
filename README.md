@@ -1,19 +1,20 @@
 # Reliability-Aware Episodic Memory for LLM Agents
 
-This repository implements, trains and evaluates the method proposed in our literature review: *Reliability-Aware Episodic Memory for LLM Agents: Preventing Error Propagation from Unreliable Past Experiences* (FAST-NUCES, Agentic AI). The review's §6 defines the mechanism and §7 the evaluation.
+This repo implements, trains and evaluates a reliability-aware episodic memory for LLM agents.
 
-Before an LLM agent reuses a past episode, it scores the episode with six reliability signals:
+Before an agent reuses a past episode, it scores that episode on six reliability signals:
+
 1. outcome
 2. calibrated confidence
 3. volatility-aware recency
 4. context and version match
 5. contradiction (a hard gate)
-6. independent tool verification (pass / fail / unchecked)
+6. independent tool verification (pass, fail or unchecked)
 
-A policy then decides to **use**, **verify**, **revise** (only when there is new evidence) or **reject** the memory. Rejected memories are flagged and kept as failure records; they are never deleted.
+A policy then decides whether to use, verify, revise or reject the memory. Revise only happens when there is new evidence. Rejected memories are flagged and kept as failure records. They are never deleted.
 
-* **Experiment plan:** [PLAN.md](PLAN.md)
-* **Results:** [RESULTS.md](RESULTS.md)
+* Experiment plan: [PLAN.md](PLAN.md)
+* Results: [RESULTS.md](RESULTS.md)
 
 ## Repository layout
 
@@ -24,7 +25,7 @@ src/rem/
   agent/       LangGraph loop: retrieve -> score -> policy -> [verify] -> act (ReAct) -> self_check
                -> [retry_reflect] -> reflect -> write
   scorer/      six signals, verification probes, score + policy, training (fit + thresholds)
-  baselines/   conditions: no-memory, plain, Reflexion-style, outcome-only, Xiong-style, ours, ablations
+  baselines/   no-memory, plain, Reflexion-style, outcome-only, Xiong-style, ours, ablations
   corruption/  5 corruption types, nested seeded corrupted banks
   metrics/     every metric, recomputed from raw logs
   llm/         OpenAI-compatible client (Groq / Modal vLLM), response cache, Modal spend guard
@@ -40,7 +41,7 @@ cache/llm_cache.sqlite    every LLM response, keyed by sha256(backend|model|seed
 ## Setup
 
 ```bash
-# Python 3.11 (the repo was built with 3.11.18 via uv)
+# Python 3.11 (built with 3.11.18 via uv)
 python -m pip install uv
 python -m uv venv --python 3.11 .venv
 python -m uv pip install --python .venv/Scripts/python.exe -r requirements.txt   # (.venv/bin/python on Linux/macOS)
@@ -49,25 +50,25 @@ python -m uv pip install --python .venv/Scripts/python.exe -e .
 
 ### Environment variables
 
-Put these in `.env`, which is gitignored:
+Put these in `.env`. It is gitignored.
 
 | Variable | Needed for |
 |---|---|
 | `GROQ_API_KEY` | Groq backend (smoke test, cross-check) |
 | `REM_VLLM_URL` | Modal vLLM endpoint, e.g. `https://<workspace>--rem-vllm-serve.us-east.modal.run/v1` |
-| `REM_VLLM_KEY` | API key the vLLM server requires; it is passed to the server at deploy time |
-| `REM_MODAL_CAP_USD` | optional; Modal spend cap for the guard (default `9.25`) |
-| `REM_CACHE_ONLY=1` | optional; any LLM cache miss becomes an error |
+| `REM_VLLM_KEY` | API key the vLLM server requires. It is passed to the server at deploy time. |
+| `REM_MODAL_CAP_USD` | Optional. Modal spend cap for the guard (default `9.25`) |
+| `REM_CACHE_ONLY=1` | Optional. Any LLM cache miss becomes an error |
 
 ## How to run
 
 ```bash
 pytest -q                                   # 309 tests, ~15 s
-python scripts/run_all.py --cache-only      # reproduce every number from the LLM cache: no API, no GPU
-python scripts/run_all.py                   # live: deploy Modal vLLM, run any missing cells, stop the server
+python scripts/run_all.py --cache-only      # reproduce every number from the LLM cache, no API or GPU
+python scripts/run_all.py                   # live: deploy Modal vLLM, run missing cells, stop the server
 ```
 
-Individual steps:
+Step by step:
 
 ```bash
 python scripts/smoke_test.py --backend groq          # <=10 tasks
@@ -83,7 +84,7 @@ modal app stop -y rem-vllm
 
 ## Getting the LLM response cache (needed for `--cache-only`)
 
-The cache is 422 MB, too large for git, so it is attached to the GitHub release **v1.0-results** as gzip files:
+The cache is 422 MB, which is too big for git. It is attached to the GitHub release **v1.0-results** as gzip files:
 
 ```bash
 gh release download v1.0-results -R ehtisham5618/reliability-aware-episodic-memory -D cache
@@ -91,22 +92,22 @@ python -c "import gzip,shutil;[shutil.copyfileobj(gzip.open(f'cache/{n}.gz','rb'
 python scripts/run_all.py --cache-only
 ```
 
-## Runtime and cost (measured on this project)
+## Runtime and cost
 
 | Step | Measured |
 |---|---|
 | Unit tests | 309 tests, ~15 s |
-| H100 cold start (vLLM server ready) | ~2.5–3 min |
-| Bank build, 150 tasks, 64 in parallel | 28–67 s |
-| Full grid, first live run (main + ablations, 15,120 task-runs, plus bank build and training) | one H100 session of ~41 min (Modal app 19:38–20:19) |
+| H100 cold start (vLLM server ready) | ~2.5 to 3 min |
+| Bank build, 150 tasks, 64 in parallel | 28 to 67 s |
+| First live run of the full grid (main + ablations, 15,120 task-runs, plus bank build and training) | one H100 session of ~41 min (Modal app 19:38 to 20:19) |
 | Re-run of the full grid after the retrieval fix (mostly cache hits) | ~11 min of H100 |
-| Total Modal spend for the whole project | **$5.99** (`results/modal_spend.json`), under the $10 cap |
-| Groq (smoke test + partial cross-check) | $0, free tier; limits are 8K tokens/min and 200K tokens/day |
-| `run_all.py --cache-only` | CPU only, $0. The full analysis takes ~5–10 min. |
+| Total Modal spend for the project | $5.99 (`results/modal_spend.json`), under the $10 cap |
+| Groq (smoke test + partial cross-check) | $0 on the free tier (8K tokens/min, 200K tokens/day) |
+| `run_all.py --cache-only` | CPU only, $0. The full analysis takes ~5 to 10 min. |
 
 ## Reproducibility
 
-* Every LLM call is cached, so re-running the scripts from the cache gives identical numbers.
-* Seeds are fixed everywhere (world, splits, corruption, task order, LLM `seed`), and temperature is 0.
-* vLLM batching is not bit-deterministic, so a *fresh* live run can differ slightly. The cache makes the reported results exactly reproducible. The no-memory condition, whose prompts are identical across rates and modes, gives the same 63.9% everywhere in the final run.
+* Every LLM call is cached, so re-running from the cache gives the same numbers.
+* Seeds are fixed for the world, splits, corruption, task order and the LLM `seed`. Temperature is 0.
+* vLLM batching is not bit-deterministic, so a fresh live run can differ slightly. The cache is what makes the reported results exactly reproducible. The no-memory condition has identical prompts across rates and modes and gives 63.9% everywhere in the final run.
 * The scorers are frozen (`artifacts/FROZEN.json`). `run_experiments.py` refuses to run if any scorer's hash has changed.
